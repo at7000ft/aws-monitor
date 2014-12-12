@@ -4,7 +4,7 @@
  *
  * </p>
  * <p> 2008</p>
- * @author rholl00
+ * @author Rick Holland
  *
  *
  */ 
