@@ -29,8 +29,8 @@ In your application define a namespace (a name that your CloudWatch metrics will
 along with CF stack name concatenated by the monitor library), a name for each metric
 that you want to monitor, and create a CWMonitor instance:
 ```
-// CloudWatch metric namespace 'BHN/KS/<app name>', all metrics added to CW using this CWMonitor instance will be categorized under this.
-private static final String namespace = "BHN/KS/TestCWMonitor";
+// CloudWatch metric namespace '/MyCompany/MyProject/<app name>', all metrics added to CW using this CWMonitor instance will be categorized under this.
+private static final String namespace = "/MyCompany/MyProject/TestCWMonitor";
 
 // Define a constant for each operation (metric name) to be monitored
 private static final String METRIC_NAME_TRANS_Z3 = "transz3";
@@ -60,7 +60,7 @@ monitor.putCWMetric(METRIC_NAME_TRANS_Z3, null, StandardUnit.Milliseconds, endTi
 
 To allow CWMonitor logging output add a new appender to your application logback.xml:
 ```
-<logger name="com.bhn.monitor" level="<level>"  />
+<logger name="com.webpilot.monitor" level="<level>"  />
 ```
 
 (Sending a non-timing metric such as counts or percent will require only calling putCWMetric with the appropriate StandardUnit and data value).
