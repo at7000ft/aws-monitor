@@ -134,7 +134,7 @@
       <file leaf-file-name="CWMonitor.java" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/main/java/com/webpilot/monitor/CWMonitor.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="2.4957056" vertical-offset="936" max-vertical-offset="10332">
+            <state vertical-scroll-proportion="-0.06625767" vertical-offset="3024" max-vertical-offset="10332">
               <caret line="165" column="33" selection-start-line="165" selection-start-column="33" selection-end-line="165" selection-end-column="33" />
               <folding>
                 <element signature="n#!!doc" expanded="true" />
@@ -169,8 +169,8 @@
     <detection-done>true</detection-done>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="1458" />
-    <option name="y" value="127" />
+    <option name="x" value="1447" />
+    <option name="y" value="126" />
     <option name="width" value="1621" />
     <option name="height" value="951" />
   </component>
@@ -482,7 +482,7 @@
   </component>
   <component name="ShelveChangesManager" show_recycled="false" />
   <component name="ToolWindowManager">
-    <frame x="1458" y="127" width="1621" height="951" extended-state="0" />
+    <frame x="1447" y="126" width="1621" height="951" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info id="Palette&#9;" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
@@ -690,7 +690,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/com/webpilot/monitor/CWMonitor.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="2.4957056" vertical-offset="936" max-vertical-offset="10332">
+        <state vertical-scroll-proportion="-0.06625767" vertical-offset="3024" max-vertical-offset="10332">
           <caret line="165" column="33" selection-start-line="165" selection-start-column="33" selection-end-line="165" selection-end-column="33" />
           <folding>
             <element signature="n#!!doc" expanded="true" />
