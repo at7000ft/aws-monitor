@@ -1,7 +1,7 @@
 aws-monitor
 ===========
 
-AWS CloudWatch custom metric library.
+A Java AWS CloudWatch custom metric library.
 
 Setup
 ============
@@ -21,7 +21,6 @@ Add the following dependency to your maven pom:
         <version>0.0.2-SNAPSHOT</version>
 </dependency>
 ```
-
 Usage
 ============
 
@@ -63,17 +62,17 @@ To allow CWMonitor logging output add a new appender to your application logback
 <logger name="com.webpilot.monitor" level="<level>"  />
 ```
 
-(Sending a non-timing metric such as counts or percent will require only calling putCWMetric with the appropriate StandardUnit and data value).
-StandardUnits include (in part):
-Seconds
-Bytes
-Bits
-Percent
-Count
-Bytes/Second (bytes per second)
-Bits/Second (bits per second)
-Count/Second (counts per second)
-None (default when no unit is specified)
+Sending a non-timing metric such as counts or percent will require only calling putCWMetric with the appropriate StandardUnit and data value.
+*StandardUnits include (in part):
+*Seconds
+*Bytes
+*Bits
+*Percent
+*Count
+*Bytes/Second (bytes per second)
+*Bits/Second (bits per second)
+*Count/Second (counts per second)
+*None (default when no unit is specified)
 
 A dimension is a name/value pair that helps you to uniquely identify a metric. To define a different metrics you can add a Dimensions Map to the putCWMetric call (optional):
 ```
