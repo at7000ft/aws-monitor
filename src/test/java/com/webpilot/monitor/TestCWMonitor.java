@@ -77,12 +77,6 @@ public class TestCWMonitor {
 		long endTime = System.currentTimeMillis();
 		// Push timing metric to CW with operation duration
 		monitor.putCWMetric(METRIC_NAME_TRANS_Z3, null,StandardUnit.Milliseconds, endTime - startTime,  null);
-		 
-		
-		//If trans status is to be added as a Dimension
-		//Map<String,String> dimensions = new HashMap<String,String>();
-		//dimensions.put("status", status ? SUCCESS_STATUS: FAILURE_STATUS);
-		//monitor.putCWAsyncMetric(METRIC_NAME_TRANS_Z3, StandardUnit.Milliseconds, endTime - startTime,  dimensions);
 	}
 
 	/**

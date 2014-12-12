@@ -24,6 +24,7 @@ public class MetricData {
     private long value;
     private Map<String, String> dimensions;
     private boolean instIdDimension;
+
     /**
      * @param metricName
      * @param namespace

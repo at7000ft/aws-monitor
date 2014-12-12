@@ -49,7 +49,7 @@ public class TestCWCounts {
 	private void testInt() {
 		long count = 0;
 		for (int i = 0; i < 30; i++) {
-			//monitor.putCWCountMetric(METRIC_NAME_TRANS_Y2, count, "success");
+			monitor.putCWCountMetric(METRIC_NAME_TRANS_Y2, count, "success");
 			count += 50;
 			try {
 				Thread.sleep(6000);

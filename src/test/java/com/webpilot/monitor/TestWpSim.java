@@ -5,26 +5,26 @@
  * <p>
  * Description: A CWMonitor simple example test application. AWS_ACCESS_KEY and AWS_SECRET_KEY must be in runtime env to
  * run in eclipse, or in environment to run in command line (if not running on EC2 with IAM Role).
- * 
+ *
  * BUILD: mvn clean compile assembly:single
- * 
+ *
  * SCP: scp -i ~/.ssh/devKey.pem target/TestWpSim-0.0.1-jar-with-dependencies.jar ubuntu@(IP):~
- * 
+ *
  * RUN: ssh ubuntu@(IP) -i /Users/rholl/.ssh/devKey.pem (ssh to dev kernel EC2) su wpuser (pw wpuser) java
  * -jar TestWpSim-0.0.1-jar-with-dependencies.jar
- * 
+ *
  * View IAM metadata on an EC2 instance using role name curl
  * http://169.254.169.254/latest/meta-data/iam/security-credentials
  * /WpCWRoleStackDEV-KSCWMailWriteAccessRole-15Y7018OR8X7L
- * 
+ *
  * </p>
  * <p>
  * 2013
  * </p>
  *
  * @author Rick Holland
- * 
- * 
+ *
+ *
  */
 package com.webpilot.monitor;
 
@@ -65,7 +65,7 @@ public class TestWpSim {
 
     /**
      * The main method.
-     * 
+     *
      * @param args the arguments
      * @throws CWMetricException
      */
@@ -101,35 +101,35 @@ public class TestWpSim {
             else
                 iterationCount = new Integer(commandString);
             switch (intEntry) {
-            case 0:
-                test.sendKernelAndWpMetrics();
-                break;
-            case 1:
-                test.sendMultiMetrics(METRIC_NAME_KERNEL_UMS, null, iterationCount, 340);
-                break;
-            case 2:
-                test.sendMultiMetrics(METRIC_NAME_KERNEL_VISA, null, iterationCount, 330);
-                break;
-            case 3:
-                test.sendMultiMetrics(METRIC_NAME_KERNEL_CMF, null, iterationCount, 320);
-                break;
-            case 4:
-                test.sendMultiMetrics(METRIC_NAME_ATALLA, WP_NAMESPACE, iterationCount, 350);
-                break;
-            case 5:
-                test.sendAllAlarmValue();
-                break;
-            case 6:
-                test.sendBatchMetrics();
-                break;
-            case 7:
-                test.sendSesEmail();
-                break;
-            case 8:
-                test.sendIntermittentMultiMetrics(METRIC_NAME_KERNEL_UMS, null, iterationCount, 200);
-                break;
-            default:
-                System.out.println("Bad entry moron");
+                case 0:
+                    test.sendKernelAndWpMetrics();
+                    break;
+                case 1:
+                    test.sendMultiMetrics(METRIC_NAME_KERNEL_UMS, null, iterationCount, 340);
+                    break;
+                case 2:
+                    test.sendMultiMetrics(METRIC_NAME_KERNEL_VISA, null, iterationCount, 330);
+                    break;
+                case 3:
+                    test.sendMultiMetrics(METRIC_NAME_KERNEL_CMF, null, iterationCount, 320);
+                    break;
+                case 4:
+                    test.sendMultiMetrics(METRIC_NAME_ATALLA, WP_NAMESPACE, iterationCount, 350);
+                    break;
+                case 5:
+                    test.sendAllAlarmValue();
+                    break;
+                case 6:
+                    test.sendBatchMetrics();
+                    break;
+                case 7:
+                    test.sendSesEmail();
+                    break;
+                case 8:
+                    test.sendIntermittentMultiMetrics(METRIC_NAME_KERNEL_UMS, null, iterationCount, 200);
+                    break;
+                default:
+                    System.out.println("Bad entry moron");
             }
         }
         //
@@ -231,39 +231,37 @@ public class TestWpSim {
     }
 
     public void sendBatchMetrics() {
-        // boolean status = false;
-        // long runStartTime = System.currentTimeMillis();
+        boolean status = false;
+        long runStartTime = System.currentTimeMillis();
         // Send job-start
-        // monitor.putCWMetric(METRIC_NAME_BATCH_JOB_START, WP_RECON_NAMESPACE, StandardUnit.Count, 1, null);
+        monitor.putCWMetric(METRIC_NAME_BATCH_JOB_START, WP_RECON_NAMESPACE, StandardUnit.Count, 1, null);
         // Send multiple item latency for multi metric
-        // for (int i = 0; i < 10; i++) {
-        // try {
-        // Thread.sleep(asyncSleepInterval);
-        // } catch (InterruptedException e) {
-        // }
-        // long startTime = System.currentTimeMillis();
-        // try {
-        // // Invoke the operation to be monitored
-        // status = doSomeTransaction();
-        // } catch (Exception e) {
-        // logger.error("callDoSomeTransaction: error - " + e);
-        // return;
-        // }
-        // long endTime = System.currentTimeMillis();
-        // STATUS stat = status ? STATUS.SUCCESS : STATUS.FAILURE;
-        //
-        // // Push multi async metrics to processing queue
-        // monitor.putCWAsyncMultiMetric(METRIC_NAME_BATCH_ITEM, WP_RECON_NAMESPACE, endTime - startTime, stat,
-        // false);
-        //
-        // }
-        //
-        // long runEndTime = System.currentTimeMillis();
-        // Send run-status 0=success 1=failure
+        for (int i = 0; i < 10; i++) {
+            try {
+                Thread.sleep(asyncSleepInterval);
+            } catch (InterruptedException e) {
+            }
+            long startTime = System.currentTimeMillis();
+            try {
+                // Invoke the operation to be monitored
+                status = doSomeTransaction();
+            } catch (Exception e) {
+                logger.error("callDoSomeTransaction: error - " + e);
+                return;
+            }
+            long endTime = System.currentTimeMillis();
+            STATUS stat = status ? STATUS.SUCCESS : STATUS.FAILURE;
+            //
+            // Push multi async metrics to processing queue
+            monitor.putCWAsyncMultiMetric(METRIC_NAME_BATCH_ITEM, WP_RECON_NAMESPACE, endTime - startTime, stat,
+                    false);
+        }
+        long runEndTime = System.currentTimeMillis();
+        //Send run-status 0=success 1=failure
         monitor.putCWMetric(METRIC_NAME_BATCH_RUN_STATUS, WP_RECON_NAMESPACE, StandardUnit.Count, 0, null);
         // Send run-latency
-        // monitor.putCWMetric(METRIC_NAME_BATCH_RUN_LATENCY, WP_RECON_NAMESPACE,
-        // StandardUnit.Microseconds,runEndTime-runStartTime, null);
+        monitor.putCWMetric(METRIC_NAME_BATCH_RUN_LATENCY, WP_RECON_NAMESPACE,
+                StandardUnit.Microseconds, runEndTime - runStartTime, null);
     }
 
     /*
@@ -279,9 +277,9 @@ public class TestWpSim {
         try {
             instId = CWMonitor.getInstanceId();
             String BODY = "This email was sent from an EC2 instance in the AWS CLOUD through SES from the TestWpSim app using AWS SDK for Java from EC2 instance id -  "
-                        + instId + " and stackname " + CWMonitor.getStackName();
+                    + instId + " and stackname " + CWMonitor.getStackName();
             // Construct an object to contain the recipient address.
-            Destination destination = new Destination().withToAddresses(new String[] { TO });
+            Destination destination = new Destination().withToAddresses(new String[]{TO});
             // Create the subject and body of the message.
             Content subject = new Content().withData(SUBJECT);
             Content textBody = new Content().withData(BODY);
@@ -290,7 +288,7 @@ public class TestWpSim {
             Message message = new Message().withSubject(subject).withBody(body);
             // Assemble the email.
             SendEmailRequest request = new SendEmailRequest().withSource(FROM).withDestination(destination)
-                        .withMessage(message);
+                    .withMessage(message);
             logger.debug("Attempting to send an email through Amazon SES by using the AWS SDK for Java...");
             // Instantiate an Amazon SES client, which will make the service call with the env or IAM AWS credentials,
             // no SMTP credentials needed.
@@ -307,7 +305,7 @@ public class TestWpSim {
 
     /**
      * Do some transaction (could involve network comm, just processing, or both).
-     * 
+     *
      * @return true, if successful
      */
     private boolean doSomeTransaction() {
@@ -321,6 +319,11 @@ public class TestWpSim {
         return Math.random() < 0.99;
     }
 
+    /**
+     * Do some transaction, random latency (could involve network comm, just processing, or both).
+     *
+     * @return true, if successful
+     */
     private boolean doSomeTransaction(long baseLatencyValue, int min, int max) {
         try {
             long sleepDuration = baseLatencyValue + getRandomBetweenPlusMinus(min, max);
@@ -334,7 +337,7 @@ public class TestWpSim {
 
     /**
      * Gets the random between plus minus.
-     * 
+     *
      * @param min the min
      * @param max the max
      * @return the random between plus minus

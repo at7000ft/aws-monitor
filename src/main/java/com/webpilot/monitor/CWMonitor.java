@@ -60,9 +60,6 @@ import com.webpilot.monitor.exceptions.CWMetricException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-/**
- * The Class CWMonitor.
- */
 public class CWMonitor implements CWMonitorIF {
     private String defaultNamespace;
     private AmazonCloudWatchClient cwClient = null;
@@ -82,7 +79,7 @@ public class CWMonitor implements CWMonitorIF {
     private int coreThreadPoolSize = 10;
     private int maxThreadPoolSize = 40;
     private static final Logger logger = LoggerFactory.getLogger(CWMonitor.class);
-    private static final String versionId = "0.30";
+    private static final String versionId = "1.0.1";
     private static final String INSTANCE_ID_KEY = "instanceId";
 
     /**

@@ -75,10 +75,10 @@ public class TestLoadData {
             try {
                 intEntry = new Integer(commandString);
             } catch (NumberFormatException e) {
-                System.out.println("Bad entry moron - " + commandString);
+                logger.error("Bad entry moron - " + commandString);
                 continue;
             }
-            System.out.println("Enter iteration count (default 1):");
+            logger.info("Enter iteration count (default 1):");
             commandString = scanner.nextLine().trim();
             if (commandString.length() == 0)
                 iterationCount = 1;
@@ -116,7 +116,7 @@ public class TestLoadData {
                 test.doMetricCallTiming();
                 break;
             default:
-                System.out.println("Bad entry moron");
+                logger.error("Bad entry moron");
             }
         }
         //
@@ -336,8 +336,8 @@ public class TestLoadData {
      * email using the Amazon SES SMTP interface.
      */
     private void sendSesEmail() {
-        String FROM = "Rick.Holland@bhnetwork.com"; // This address must be verified.
-        String TO = "Rick.Holland@bhnetwork.com";
+        String FROM = "at7000ft@gmail.com"; // This address must be verified.
+        String TO = "at7000ft@gmail.com";
         String instId = null;
         String SUBJECT = "Amazon SES test (AWS SDK for Java)";
         logger.debug("sendSesEmail: Sending email to " + TO);
