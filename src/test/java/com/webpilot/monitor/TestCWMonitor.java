@@ -27,8 +27,8 @@ import java.util.Random;
  * The Class TestCWMonitor.
  */
 public class TestCWMonitor {
-	//CloudWatch metric namespace 'BHN/KS/<app name>', all metrics added to CW using this CWMonitor instance will be categorized under this.
-	private static final String namespace = "BHN/KS/TestCWMonitor";
+	//CloudWatch metric namespace 'WP.Project1.<app name>', all metrics added to CW using this CWMonitor instance will be categorized under this.
+	private static final String namespace = "WP/Project1/TestCWMonitor";
 	//Define a constant for each operation (metric name) to be monitored
 	private static final String METRIC_NAME_TRANS_Z3 = "transz3";
 	//CWMonitor to push metrics to CW

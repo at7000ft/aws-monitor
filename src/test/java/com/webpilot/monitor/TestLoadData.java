@@ -31,10 +31,10 @@ import java.util.Random;
 import java.util.Scanner;
 
 public class TestLoadData {
-    // CloudWatch metric namespace 'BHN/KS/<app name>', all metrics added to CW using this CWMonitor instance will be
+    // CloudWatch metric namespace 'WP/Project1/<app name>', all metrics added to CW using this CWMonitor instance will be
     // categorized under this.
-    private static final String namespace = "BHN/KS/TestLoadData";
-    private static final String keystoneNamespace = "BHN/KS";
+    private static final String namespace = "WP/Project1/TestLoadData";
+    private static final String WpNamespace = "WP/Project1";
     // Define a constant for each operation (metric name) to be monitored
     private static final String METRIC_NAME_SYNC_TRANS_Z5 = "synctransz5";
     // private static final String METRIC_NAME_TRANS_Z6 = "transz6";
@@ -132,7 +132,7 @@ public class TestLoadData {
         System.out.println("\t2) Sync w/dim (synctransz5):");
         System.out.println("\t3) Async single (asyncz6): ");
         System.out.println("\t4) Async single instId (asyncz6): ");
-        System.out.println("\t5) Async single keystone namespace (nnasyncz69): ");
+        System.out.println("\t5) Async single wp namespace (nnasyncz69): ");
         System.out.println("\t6) Async multi (multasyncz8): ");
         System.out.println("\t7) Async multi instId (multasyncz8): ");
         System.out.println("\t8) Async single over 300ms (force alarm - asyncz6): ");
@@ -288,7 +288,7 @@ public class TestLoadData {
     public void doAsyncSingleMetricWithNonDefaultNamespace() {
         for (int i = 0; i < iterationCount; i++) {
             // Push async metric with non-default namespace
-            monitor.putCWAsyncMetric(METRIC_NAME_NN_ASYNC_Z9, keystoneNamespace, StandardUnit.Milliseconds, 300, null,
+            monitor.putCWAsyncMetric(METRIC_NAME_NN_ASYNC_Z9, WpNamespace, StandardUnit.Milliseconds, 300, null,
                         false);
             if (iterationCount > 1) {
                 try {
@@ -333,8 +333,7 @@ public class TestLoadData {
 
     /*
      * You use AWS access keys when you send an email using the Amazon SES API, and SMTP credentials when you send an
-     * email using the Amazon SES SMTP interface. IAM User Name Smtp Username Smtp Password ses-smtp-user.rholl00
-     * AKIAJNZUU36NC4NISWRQ AlSruTXoEcMEhPLvt5/lL3T7c9ZbQpTSn+HjqanCKTlG
+     * email using the Amazon SES SMTP interface.
      */
     private void sendSesEmail() {
         String FROM = "Rick.Holland@bhnetwork.com"; // This address must be verified.

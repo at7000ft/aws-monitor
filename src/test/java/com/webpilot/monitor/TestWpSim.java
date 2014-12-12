@@ -10,7 +10,7 @@
  * 
  * SCP: scp -i ~/.ssh/devKey.pem target/TestWpSim-0.0.1-jar-with-dependencies.jar ubuntu@(IP):~
  * 
- * RUN: ssh ubuntu@(IP) -i /Users/rholl00/.ssh/devKey.pem (ssh to dev kernel EC2) su bhnuser (pw bhnuser) java
+ * RUN: ssh ubuntu@(IP) -i /Users/rholl/.ssh/devKey.pem (ssh to dev kernel EC2) su wpuser (pw wpuser) java
  * -jar TestWpSim-0.0.1-jar-with-dependencies.jar
  * 
  * View IAM metadata on an EC2 instance using role name curl
@@ -41,11 +41,11 @@ import java.util.Scanner;
 
 
 public class TestWpSim {
-    // CloudWatch metric namespace 'BHN/KS/<app name>', all metrics added to CW using this CWMonitor instance will be
+    // CloudWatch metric namespace 'WP/Project1/<app name>', all metrics added to CW using this CWMonitor instance will be
     // categorized under this.
-    private static final String KERNEL_NAMESPACE = "BHN/KS/Kernel";
-    private static final String KEYSTONE_NAMESPACE = "BHN/KS";
-    private static final String KEYSTONE_RECON_NAMESPACE = "BHN/KS/Recon";
+    private static final String KERNEL_NAMESPACE = "WP/Project1/Kernel";
+    private static final String WP_NAMESPACE = "WP/Project1/";
+    private static final String WP_RECON_NAMESPACE = "WP/Project1/Recon";
     // Define a constant for each operation (metric name) to be monitored
     private static final String METRIC_NAME_ATALLA = "atalla";
     private static final String METRIC_NAME_KERNEL_UMS = "ums";
@@ -56,7 +56,7 @@ public class TestWpSim {
     private static final String METRIC_NAME_BATCH_RUN_STATUS = "run-status"; // Once at job end 0 or 1
     private static final String METRIC_NAME_BATCH_RUN_LATENCY = "run-latency"; // Once at job end
     private static final String METRIC_NAME_BATCH_ITEM = "item"; // Multi for each item processed
-    private static final String SES_EMAIL_ADDR = "Rick.Holland@bhnetwork.com";
+    private static final String SES_EMAIL_ADDR = "at7000ft@gmail.com";
     // CWMonitor to push metrics to CW
     private CWMonitorIF monitor = null;
     private static int iterationCount = 1;
@@ -114,7 +114,7 @@ public class TestWpSim {
                 test.sendMultiMetrics(METRIC_NAME_KERNEL_CMF, null, iterationCount, 320);
                 break;
             case 4:
-                test.sendMultiMetrics(METRIC_NAME_ATALLA, KEYSTONE_NAMESPACE, iterationCount, 350);
+                test.sendMultiMetrics(METRIC_NAME_ATALLA, WP_NAMESPACE, iterationCount, 350);
                 break;
             case 5:
                 test.sendAllAlarmValue();
@@ -157,7 +157,7 @@ public class TestWpSim {
             sendMultiMetrics(METRIC_NAME_KERNEL_UMS, null, 1, 0);
             sendMultiMetrics(METRIC_NAME_KERNEL_VISA, null, 1, 0);
             sendMultiMetrics(METRIC_NAME_KERNEL_CMF, null, 1, 0);
-            // sendMultiMetrics(METRIC_NAME_ATALLA, KEYSTONE_NAMESPACE, 1, 0);
+            // sendMultiMetrics(METRIC_NAME_ATALLA, WP_NAMESPACE, 1, 0);
         }
     }
 
@@ -166,7 +166,7 @@ public class TestWpSim {
             sendMultiMetrics(METRIC_NAME_KERNEL_UMS, null, 1, 340);
             sendMultiMetrics(METRIC_NAME_KERNEL_VISA, null, 1, 330);
             sendMultiMetrics(METRIC_NAME_KERNEL_CMF, null, 1, 320);
-            // sendMultiMetrics(METRIC_NAME_ATALLA, KEYSTONE_NAMESPACE, 1, 350);
+            // sendMultiMetrics(METRIC_NAME_ATALLA, WP_NAMESPACE, 1, 350);
         }
     }
 
@@ -234,7 +234,7 @@ public class TestWpSim {
         // boolean status = false;
         // long runStartTime = System.currentTimeMillis();
         // Send job-start
-        // monitor.putCWMetric(METRIC_NAME_BATCH_JOB_START, KEYSTONE_RECON_NAMESPACE, StandardUnit.Count, 1, null);
+        // monitor.putCWMetric(METRIC_NAME_BATCH_JOB_START, WP_RECON_NAMESPACE, StandardUnit.Count, 1, null);
         // Send multiple item latency for multi metric
         // for (int i = 0; i < 10; i++) {
         // try {
@@ -253,23 +253,22 @@ public class TestWpSim {
         // STATUS stat = status ? STATUS.SUCCESS : STATUS.FAILURE;
         //
         // // Push multi async metrics to processing queue
-        // monitor.putCWAsyncMultiMetric(METRIC_NAME_BATCH_ITEM, KEYSTONE_RECON_NAMESPACE, endTime - startTime, stat,
+        // monitor.putCWAsyncMultiMetric(METRIC_NAME_BATCH_ITEM, WP_RECON_NAMESPACE, endTime - startTime, stat,
         // false);
         //
         // }
         //
         // long runEndTime = System.currentTimeMillis();
         // Send run-status 0=success 1=failure
-        monitor.putCWMetric(METRIC_NAME_BATCH_RUN_STATUS, KEYSTONE_RECON_NAMESPACE, StandardUnit.Count, 0, null);
+        monitor.putCWMetric(METRIC_NAME_BATCH_RUN_STATUS, WP_RECON_NAMESPACE, StandardUnit.Count, 0, null);
         // Send run-latency
-        // monitor.putCWMetric(METRIC_NAME_BATCH_RUN_LATENCY, KEYSTONE_RECON_NAMESPACE,
+        // monitor.putCWMetric(METRIC_NAME_BATCH_RUN_LATENCY, WP_RECON_NAMESPACE,
         // StandardUnit.Microseconds,runEndTime-runStartTime, null);
     }
 
     /*
      * You use AWS access keys when you send an email using the Amazon SES API, and SMTP credentials when you send an
-     * email using the Amazon SES SMTP interface. IAM User Name Smtp Username Smtp Password ses-smtp-user.rholl00
-     * AKIAJNZUU36NC4NISWRQ AlSruTXoEcMEhPLvt5/lL3T7c9ZbQpTSn+HjqanCKTlG
+     * email using the Amazon SES SMTP interface.
      */
     private void sendSesEmail() {
         String FROM = SES_EMAIL_ADDR; // This address must be verified.

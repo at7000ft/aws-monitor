@@ -26,7 +26,7 @@ import java.util.TimeZone;
 
 public class TestCWCounts {
 	private static final String METRIC_NAME_TRANS_Y2 = "transy2";
-	private static final String namespace = "BHN/KS/TestCWCounts";
+	private static final String namespace = "WP/Project1/TestCWCounts";
 	private CWMonitorIF monitor = null;
 	private static final Logger logger = LoggerFactory.getLogger(TestCWCounts.class);
 

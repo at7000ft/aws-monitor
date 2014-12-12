@@ -23,7 +23,7 @@ import java.util.Date;
 import java.util.TimeZone;
 
 public class TestCWIntervals {
-	private static final String namespace = "BHN/KS/TestCWIntervals";
+	private static final String namespace = "WP/Project1/TestCWIntervals";
 	private static final String METRIC_NAME_TRANS_X1 = "transx1";
 	private CWMonitorIF monitor = null;
 

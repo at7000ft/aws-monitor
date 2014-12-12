@@ -27,9 +27,9 @@ import java.util.Random;
 
 
 public class TestCWMonitorWCounts {
-	// CloudWatch metric namespace 'blackhawk.keystone.<app name>', all metrics added to CW using this CWMonitor instance
+	// CloudWatch metric namespace 'WP.Project1.<app name>', all metrics added to CW using this CWMonitor instance
 	// will be categorized under this.
-	private static final String namespace = "BHN/KS/TestCWMonitorWCounts";
+	private static final String namespace = "WP/Project1/TestCWMonitorWCounts";
 	// Event name constant to be sent to SNS via CWMonitor to generate admin email when something real bad happens
 	private static final String CANT_TALK_TO_SC_EVENT = "cantTalkToSCEvent";
 	// Define a constant for each operation to be monitored
