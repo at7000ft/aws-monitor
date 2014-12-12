@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MetricAccumulator.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="right"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">bhn-monitor</a> &gt; <a href="index.html" class="el_package">com.bhn.monitor</a> &gt; <span class="el_source">MetricAccumulator.java</span></div><h1>MetricAccumulator.java</h1><pre class="source lang-java linenums">/**
+ * &lt;p&gt;
+ * Title: MetricAccumulator.java
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Description: Aggregates multiple MetricData data sets for the same metric. Calculates average value and success
+ * percentage when asked.
+ * 
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * 2008
+ * &lt;/p&gt;
+ * 
+ * @author rholl00
+ * 
+ * 
+ */
+package com.bhn.monitor;
+
+import static com.bhn.monitor.CWMonitorIF.STATUS.SUCCESS;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.amazonaws.services.cloudwatch.model.Dimension;
+import com.amazonaws.services.cloudwatch.model.MetricDatum;
+import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
+import com.amazonaws.services.cloudwatch.model.StandardUnit;
+
+/**
+ * The Class MetricAccumulator.
+ */
+public class MetricAccumulator {
+    private MetricData data;
+<span class="nc" id="L40">    private long totalCount = 0;</span>
+<span class="nc" id="L41">    private long successCount = 0;</span>
+<span class="nc" id="L42">    private double valueSum = 0.0;</span>
+    private ACCTYPE type;
+    private static final String MULTI_LATENCY_SUFFIX = &quot;-latency&quot;;
+    private static final String MULTI_TCOUNT_SUFFIX = &quot;-tcount&quot;;
+    private static final String MULTI_SPERCENT_SUFFIX = &quot;-spercent&quot;;
+<span class="nc" id="L47">    private static final Logger logger = LoggerFactory.getLogger(MetricAccumulator.class);</span>
+
+    /**
+     * The Enum ACCTYPE.
+     */
+<span class="nc" id="L52">    public static enum ACCTYPE {</span>
+<span class="nc" id="L53">        SINGLE, MULTI</span>
+    };
+
+    /**
+     * Instantiates a new metric accumulator.
+     * 
+     * @param data the data
+     */
+    public MetricAccumulator(MetricData data) {
+<span class="nc" id="L62">        super();</span>
+<span class="nc" id="L63">        this.data = data;</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        if (data.getStatus() == null) {</span>
+<span class="nc" id="L65">            this.type = ACCTYPE.SINGLE;</span>
+        } else {
+<span class="nc" id="L67">            this.type = ACCTYPE.MULTI;</span>
+        }
+<span class="nc" id="L69">    }</span>
+
+    /**
+     * Copy constructor. Instantiates a new metric accumulator.
+     * 
+     * @param org the org
+     */
+<span class="nc" id="L76">    public MetricAccumulator(MetricAccumulator org) {</span>
+<span class="nc" id="L77">        this.data = new MetricData(org.getData());</span>
+<span class="nc" id="L78">        this.totalCount = org.getTotalCount();</span>
+<span class="nc" id="L79">        this.successCount = org.getSuccessCount();</span>
+<span class="nc" id="L80">        this.valueSum = org.getValueSum();</span>
+<span class="nc" id="L81">        this.type = org.getType();</span>
+<span class="nc" id="L82">    }</span>
+
+    /**
+     * Insert metric data.
+     * 
+     * @param data the data
+     */
+    public void insert(MetricData data) {
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (data.getStatus() == SUCCESS) {</span>
+<span class="nc" id="L91">            this.successCount++;</span>
+        }
+<span class="nc" id="L93">        this.totalCount++;</span>
+<span class="nc" id="L94">        this.valueSum += data.getValue();</span>
+<span class="nc bnc" id="L95" title="All 6 branches missed.">        if (this.successCount &gt;= Long.MAX_VALUE || this.totalCount &gt;= Long.MAX_VALUE</span>
+                    || this.successCount &gt;= Double.MAX_VALUE) {
+<span class="nc" id="L97">            logger.warn(&quot;Count exceeds MAX_VALUE, resetting all counts to zero for &quot; + data.getMetricName());</span>
+<span class="nc" id="L98">            totalCount = 0;</span>
+<span class="nc" id="L99">            successCount = 0;</span>
+<span class="nc" id="L100">            valueSum = 0.0;</span>
+        }
+<span class="nc" id="L102">    }</span>
+
+    /**
+     * Compose and return a PutMetricDataRequest that can be sent to CloudWatch. For SINGLE ACCTYPE metrics only. Adds
+     * average value into request.
+     * 
+     * @return the put metric data request
+     */
+    public PutMetricDataRequest getPutMetricDataRequest() {
+<span class="nc" id="L111">        return getPutMetricDataRequest(getAverage(), data.getUnit(), data.getMetricName());</span>
+    }
+
+    /**
+     * Compose and return a PutMetricDataRequest that can be sent to CloudWatch. For SINGLE ACCTYPE metrics only. Adds
+     * average value into request.
+     *
+     * @param value the value
+     * @param unit the unit
+     * @param metricName the metric name
+     * @return the put metric data request
+     */
+    public PutMetricDataRequest getPutMetricDataRequest(double value, StandardUnit unit, String metricName) {
+<span class="nc" id="L124">        Date timestamp = new Date();</span>
+<span class="nc" id="L125">        PutMetricDataRequest req = new PutMetricDataRequest();</span>
+        // Add a collection of MetricDatum
+<span class="nc" id="L127">        ArrayList&lt;MetricDatum&gt; metrics = new ArrayList&lt;MetricDatum&gt;();</span>
+<span class="nc" id="L128">        MetricDatum datum = new MetricDatum().withMetricName(metricName).withTimestamp(timestamp).withUnit(unit)</span>
+                    .withValue(value);
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        if (data.getDimensions() != null) {</span>
+<span class="nc" id="L131">            List&lt;Dimension&gt; dims = datum.getDimensions();</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">            for (Map.Entry&lt;String, String&gt; entry : data.getDimensions().entrySet()) {</span>
+<span class="nc" id="L133">                Dimension dim = new Dimension().withName(entry.getKey()).withValue(entry.getValue());</span>
+<span class="nc" id="L134">                dims.add(dim);</span>
+<span class="nc" id="L135">            }</span>
+<span class="nc" id="L136">            datum.setDimensions(dims);</span>
+        }
+        // Add metric to collection
+<span class="nc" id="L139">        metrics.add(datum);</span>
+<span class="nc" id="L140">        req.setMetricData(metrics);</span>
+<span class="nc" id="L141">        req.setNamespace(data.getNamespace());</span>
+<span class="nc" id="L142">        return req;</span>
+    }
+
+    /**
+     * Compose and return a PutMetricDataRequest that can be sent to CloudWatch. For MULTI ACCTYPE total count metric
+     * only.
+     * 
+     * @return the put metric data request
+     */
+    public PutMetricDataRequest getMultiCountPutMetricDataRequest() {
+<span class="nc" id="L152">        return getPutMetricDataRequest(totalCount, StandardUnit.Count, data.getMetricName() + MULTI_TCOUNT_SUFFIX);</span>
+    }
+    
+    /**
+     * Gets the multi count zero data put metric data request.
+     *
+     * @return the multi count zero data put metric data request
+     */
+    public PutMetricDataRequest getMultiCountZeroDataPutMetricDataRequest() {
+<span class="nc" id="L161">        return getPutMetricDataRequest(0, StandardUnit.Count, data.getMetricName() + MULTI_TCOUNT_SUFFIX);</span>
+    }
+
+    /**
+     * Compose and return a PutMetricDataRequest that can be sent to CloudWatch. For MULTI ACCTYPE success count metric
+     * only.
+     * 
+     * @return the put metric data request
+     */
+    public PutMetricDataRequest getMultiSuccessCountPutMetricDataRequest() {
+<span class="nc" id="L171">        return getPutMetricDataRequest(getSuccessPercentage(), StandardUnit.Percent, data.getMetricName()</span>
+                    + MULTI_SPERCENT_SUFFIX);
+    }
+    
+    /**
+     * Gets the multi success count zero data put metric data request.
+     *
+     * @return the multi success count zero data put metric data request
+     */
+    public PutMetricDataRequest getMultiSuccessCountZeroDataPutMetricDataRequest() {
+<span class="nc" id="L181">        return getPutMetricDataRequest(100.0d, StandardUnit.Percent, data.getMetricName()</span>
+                    + MULTI_SPERCENT_SUFFIX);
+    }
+
+    /**
+     * Compose and return a PutMetricDataRequest that can be sent to CloudWatch. For MULTI ACCTYPE latency metric only.
+     * 
+     * @return the put metric data request
+     */
+    public PutMetricDataRequest getMultiLatencyPutMetricDataRequest() {
+<span class="nc" id="L191">        return getPutMetricDataRequest(getAverage(), StandardUnit.Milliseconds, data.getMetricName()</span>
+                    + MULTI_LATENCY_SUFFIX);
+    }
+    
+    /**
+     * Gets the multi latency zero data put metric data request.
+     *
+     * @return the multi latency zero data put metric data request
+     */
+    public PutMetricDataRequest getMultiLatencyZeroDataPutMetricDataRequest() {
+<span class="nc" id="L201">        return getPutMetricDataRequest(0.0d, StandardUnit.Milliseconds, data.getMetricName()</span>
+                    + MULTI_LATENCY_SUFFIX);
+    }
+
+    /**
+     * Gets the average.
+     * 
+     * @return the average
+     */
+    public double getAverage() {
+<span class="nc" id="L211">        return (valueSum / totalCount);</span>
+    }
+
+    /**
+     * Gets the success percentage.
+     * 
+     * @return the success percentage
+     */
+    public double getSuccessPercentage() {
+<span class="nc" id="L220">        return ((double) successCount) / ((double) totalCount) * 100.0;</span>
+    }
+
+    /**
+     * Gets the data.
+     * 
+     * @return the data
+     */
+    public MetricData getData() {
+<span class="nc" id="L229">        return data;</span>
+    }
+
+    /**
+     * Sets the data.
+     * 
+     * @param data the new data
+     */
+    public void setData(MetricData data) {
+<span class="nc" id="L238">        this.data = data;</span>
+<span class="nc" id="L239">    }</span>
+
+    /**
+     * Gets the total count.
+     * 
+     * @return the totalCount
+     */
+    public long getTotalCount() {
+<span class="nc" id="L247">        return totalCount;</span>
+    }
+
+    /**
+     * Sets the total count.
+     * 
+     * @param totalCount the new total count
+     */
+    public void setTotalCount(long totalCount) {
+<span class="nc" id="L256">        this.totalCount = totalCount;</span>
+<span class="nc" id="L257">    }</span>
+
+    /**
+     * Gets the success count.
+     * 
+     * @return the successCount
+     */
+    public long getSuccessCount() {
+<span class="nc" id="L265">        return successCount;</span>
+    }
+
+    /**
+     * Sets the success count.
+     * 
+     * @param successCount the new success count
+     */
+    public void setSuccessCount(long successCount) {
+<span class="nc" id="L274">        this.successCount = successCount;</span>
+<span class="nc" id="L275">    }</span>
+
+    /**
+     * Gets the value sum.
+     * 
+     * @return the valueSum
+     */
+    public double getValueSum() {
+<span class="nc" id="L283">        return valueSum;</span>
+    }
+
+    /**
+     * Sets the value sum.
+     * 
+     * @param valueSum the new value sum
+     */
+    public void setValueSum(double valueSum) {
+<span class="nc" id="L292">        this.valueSum = valueSum;</span>
+<span class="nc" id="L293">    }</span>
+
+    /**
+     * Gets the type.
+     * 
+     * @return the type
+     */
+    public ACCTYPE getType() {
+<span class="nc" id="L301">        return type;</span>
+    }
+
+    /**
+     * Sets the type.
+     * 
+     * @param type the new type
+     */
+    public void setType(ACCTYPE type) {
+<span class="nc" id="L310">        this.type = type;</span>
+<span class="nc" id="L311">    }</span>
+
+    /*
+     * @see java.lang.Object#toString()
+     */
+    public String toString() {
+<span class="nc" id="L317">        return &quot;MetricAccumulator [metric=&quot; + data.getMapCompoundKey() + &quot; totalCount=&quot; + totalCount + &quot;, successCount=&quot; + successCount + &quot;, valueSum=&quot;</span>
+                    + valueSum + &quot;, type=&quot; + type + &quot;]&quot;;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.6.2.201302030002</span></div></body></html>

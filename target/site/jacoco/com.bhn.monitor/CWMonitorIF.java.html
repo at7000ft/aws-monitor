@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CWMonitorIF.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="right"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">bhn-monitor</a> &gt; <a href="index.html" class="el_package">com.bhn.monitor</a> &gt; <span class="el_source">CWMonitorIF.java</span></div><h1>CWMonitorIF.java</h1><pre class="source lang-java linenums">/**
+ * &lt;p&gt;
+ * Title: CWMonitorIF.java
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Description: CWMonitor interfaces.
+ * 
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * 2013
+ * &lt;/p&gt;
+ * 
+ * @author rholl00
+ * 
+ * 
+ */
+package com.bhn.monitor;
+
+import java.util.Map;
+
+import com.amazonaws.services.cloudwatch.model.StandardUnit;
+
+/**
+ * The Interface CWMonitorIF.
+ */
+public interface CWMonitorIF {
+    
+    /**
+     * The Enum STATUS.
+     */
+<span class="nc" id="L31">    enum STATUS {</span>
+<span class="nc" id="L32">        SUCCESS, FAILURE</span>
+    };
+    
+    /**
+     * Send a metric value to CloudWatch synchonously.
+     *
+     * @param metricName the metric name (name of the operation)
+     * @param namespace - overrides the default namespace if not null (optional). CF stackname is appended by monitor lib.
+     * @param unit - StandardUnit e.g. Count, Milliseconds, Nanoseconds, Percent, etc.
+     * @param value the long value, counts, message latency, percentage, etc.
+     * @param dimensions - a map of string key value pairs further defining the metric e.g. instanceId, peerId, etc.
+     * @return true, if successful else false
+     */
+    boolean putCWMetric(String metricName, String namespace, StandardUnit unit, long value, Map&lt;String,String&gt; dimensions);
+
+    /**
+     * Asynchronously on &lt;timing interval&gt; intervals send average latency, success percentage, and total count type
+     * metric values to CloudWatch. Internally maintain total counts and success counts for each unique metric.
+     * 
+     * @param metricName the metric name (name of the operation). Monitor lib appends a different string for each of the three metric type sent to CW:
+     *      &quot;-latency&quot;  - for the Milliseconds type latency value.
+     *      &quot;-tcount&quot;   - for the Count type total count.
+     *      &quot;-spercent&quot;   - for the Percent type succuss percentage.
+     * @param namespace - overrides the default namespace if not null (optional). CF stackname is appended by monitor lib.
+     * @param msLatency the long value, message latency
+     * @param status the status, SUCCESS or FAILURE
+     * @param instIdDimension if true the EC2 instance id is added to the metrics as a dimension in the form
+     *        'instanceId=xxxx'
+     * @return true, if successful else false
+     */
+    boolean putCWAsyncMultiMetric(String metricName, String namespace, long msLatency, STATUS status, boolean instIdDimension);
+
+    /**
+     * Asynchronously on &lt;timing interval&gt; intervals send averaged value metric to CloudWatch.
+     *
+     * @param metricName the metric name (name of the operation)
+     * @param namespace - overrides the default namespace if not null (optional). CF stackname is appended by monitor lib.
+     * @param unit the unit
+     * @param value the long value, message latency
+     * @param dimensions - a map of string key value pairs further defining the metric e.g. responseId, peerId, etc.
+     * @param instIdDimension if true the EC2 instance id is added to the metrics as a dimension in the form
+     * 'instanceId=xxxx'
+     * @return true, if successful else false
+     */
+    boolean putCWAsyncMetric(String metricName, String namespace, StandardUnit unit, long value, Map&lt;String, String&gt; dimensions,
+                boolean instIdDimension);
+    
+    /**
+     * Close all threads, called at application exit.
+     */
+    void close();
+    
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.6.2.201302030002</span></div></body></html>

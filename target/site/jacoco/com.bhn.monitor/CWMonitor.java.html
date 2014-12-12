@@ -1,0 +1,571 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CWMonitor.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="right"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">bhn-monitor</a> &gt; <a href="index.html" class="el_package">com.bhn.monitor</a> &gt; <span class="el_source">CWMonitor.java</span></div><h1>CWMonitor.java</h1><pre class="source lang-java linenums">/**
+ * &lt;p&gt;
+ * Title: CWMonitor.java
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Description: Main BHN AWS Monitoring Library class.
+ * 
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * 2014
+ * &lt;/p&gt;
+ * 
+ * @author rholl00
+ * 
+ */
+package com.bhn.monitor;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.TreeMap;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.Protocol;
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.RegionUtils;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchClient;
+import com.amazonaws.services.cloudwatch.model.Dimension;
+import com.amazonaws.services.cloudwatch.model.MetricDatum;
+import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
+import com.amazonaws.services.cloudwatch.model.StandardUnit;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.Tag;
+import com.bhn.monitor.exceptions.CWMetricException;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+/**
+ * The Class CWMonitor.
+ */
+public class CWMonitor implements CWMonitorIF {
+    private String defaultNamespace;
+<span class="nc" id="L65">    private AmazonCloudWatchClient cwClient = null;</span>
+    // Used to allow testing on non-EC2 instance
+    private static final String US_WEST2_REGION = &quot;us-west-2&quot;;
+<span class="nc" id="L68">    private static String ec2InstanceId = null;</span>
+<span class="nc" id="L69">    private static String regionStr = null;</span>
+<span class="nc" id="L70">    private static String stackName = null;</span>
+<span class="nc" id="L71">    private BlockingQueue&lt;Runnable&gt; queue = null;</span>
+<span class="nc" id="L72">    private ThreadPoolExecutor executor = null;</span>
+<span class="nc" id="L73">    private Map&lt;String, MetricAccumulator&gt; accMap = null;</span>
+    // Map to maintain all metrics that are being passed in by using application, data in these is not used, only metric
+    // names/namespaces.
+<span class="nc" id="L76">    private Map&lt;String, MetricAccumulator&gt; zeroDataAccMap = new HashMap&lt;String, MetricAccumulator&gt;();;</span>
+<span class="nc" id="L77">    private Thread mpThread = null;</span>
+<span class="nc" id="L78">    private boolean cwMetricsPush = true;</span>
+<span class="nc" id="L79">    private int coreThreadPoolSize = 10;</span>
+<span class="nc" id="L80">    private int maxThreadPoolSize = 40;</span>
+<span class="nc" id="L81">    private static final Logger logger = LoggerFactory.getLogger(CWMonitor.class);</span>
+    private static final String versionId = &quot;0.30&quot;;
+    private static final String INSTANCE_ID_KEY = &quot;instanceId&quot;;
+
+    /**
+     * Instantiates a new CW monitor.
+     * 
+     * @param namespace the namespace
+     * @throws CWMetricException the cW metric exception
+     */
+<span class="nc" id="L91">    public CWMonitor(String namespace) throws CWMetricException {</span>
+<span class="nc" id="L92">        logger.info(&quot;Const versionId - &quot; + versionId);</span>
+<span class="nc" id="L93">        awsInit(namespace);</span>
+<span class="nc" id="L94">        threadInit();</span>
+<span class="nc" id="L95">    }</span>
+
+    /**
+     * Thread init.
+     * 
+     * @throws CWMetricException the CW metric exception
+     */
+    private void threadInit() throws CWMetricException {
+        try {
+<span class="nc" id="L104">            queue = new ArrayBlockingQueue&lt;Runnable&gt;(maxThreadPoolSize);</span>
+<span class="nc" id="L105">            executor = new ThreadPoolExecutor(coreThreadPoolSize, maxThreadPoolSize, Long.MAX_VALUE, TimeUnit.SECONDS,</span>
+                        queue);
+<span class="nc" id="L107">            accMap = new HashMap&lt;String, MetricAccumulator&gt;();</span>
+            // Start MetricPushThread to average and push all metric data collected in accMap to CloudWatch on time
+            // interval
+<span class="nc" id="L110">            mpThread = new Thread(new MetricPushThread(this));</span>
+<span class="nc" id="L111">            mpThread.setDaemon(true);</span>
+<span class="nc" id="L112">            mpThread.isDaemon();</span>
+<span class="nc" id="L113">            mpThread.start();</span>
+<span class="nc" id="L114">        } catch (Exception e) {</span>
+<span class="nc" id="L115">            logger.warn(&quot;Init error -  &quot; + e.getMessage());</span>
+<span class="nc" id="L116">            throw new CWMetricException(&quot;Init error - &quot; + e.getMessage());</span>
+<span class="nc" id="L117">        }</span>
+<span class="nc" id="L118">    }</span>
+
+    /**
+     * Aws init.
+     * 
+     * @param namespace the default namespace
+     * @throws CWMetricException the CW metric exception
+     */
+    private void awsInit(String namespace) throws CWMetricException {
+        try {
+            // Need to concantenate CF stack name to this
+<span class="nc" id="L129">            this.defaultNamespace = namespace;</span>
+<span class="nc" id="L130">            ClientConfiguration clientConfig = new ClientConfiguration();</span>
+            // Default is HTTPS but just to convince the security people
+<span class="nc" id="L132">            clientConfig.setProtocol(Protocol.HTTPS);</span>
+            try {
+                // Search for AWS credentials first in Environment Variables: AWS_ACCESS_KEY_ID and AWS_SECRET_KEY
+                // then Java System Properties: aws.accessKeyId and aws.secretKey
+                // and last through Instance Metadata Service, which provides the credentials associated with the IAM
+                // role for the EC2 instance.
+<span class="nc" id="L138">                cwClient = new AmazonCloudWatchClient(clientConfig);</span>
+<span class="nc" id="L139">            } catch (AmazonClientException e) {</span>
+<span class="nc" id="L140">                logger.warn(&quot;AWS credentials not found in environment or using Instance Meta Data Service (IMDS)&quot;);</span>
+<span class="nc" id="L141">                throw new CWMetricException(</span>
+                            &quot;AWS credentials not found in environment or using Instance Meta Data Service (IMDS)&quot;);
+<span class="nc" id="L143">            }</span>
+<span class="nc" id="L144">            cwClient.setRegion(getCurrentRegion());</span>
+<span class="nc" id="L145">            getStackName();</span>
+<span class="nc" id="L146">            getInstanceId();</span>
+<span class="nc" id="L147">        } catch (Exception e) {</span>
+<span class="nc" id="L148">            logger.warn(&quot;Init error -  &quot; + e.getMessage());</span>
+<span class="nc" id="L149">            throw new CWMetricException(&quot;init error - &quot; + e.getMessage());</span>
+<span class="nc" id="L150">        }</span>
+<span class="nc" id="L151">    }</span>
+
+    /**
+     * Gets the current region.
+     * 
+     * @return the current region
+     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws InterruptedException the interrupted exception
+     * @throws CWMetricException the cW metric exception
+     */
+    public static Region getCurrentRegion() throws IOException, InterruptedException, CWMetricException {
+<span class="nc" id="L162">        return RegionUtils.getRegion(getRegionString());</span>
+    }
+
+    /**
+     * Gets the namespace string.
+     * 
+     * @param namespace the namespace
+     * @return the namespace string
+     */
+    private String getNamespaceString(String namespace) {
+        String ns;
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        if (namespace == null) {</span>
+<span class="nc" id="L174">            ns = defaultNamespace;</span>
+        } else {
+<span class="nc" id="L176">            ns = namespace;</span>
+        }
+<span class="nc bnc" id="L178" title="All 2 branches missed.">        if (ns.endsWith(&quot;/&quot;)) {</span>
+<span class="nc" id="L179">            return ns + stackName;</span>
+        } else {
+<span class="nc" id="L181">            return ns + &quot;-&quot; + stackName;</span>
+        }
+    }
+
+    /*
+     * @see com.bhn.monitor.CWMonitorIF#putCWMetric(java.lang.String, java.lang.String,
+     * com.amazonaws.services.cloudwatch.model.StandardUnit, long, java.util.Map)
+     */
+    public boolean putCWMetric(String metricName, String namespace, StandardUnit unit, long value,
+                Map&lt;String, String&gt; dimensions) {
+        try {
+<span class="nc" id="L192">            Date timestamp = new Date();</span>
+<span class="nc" id="L193">            String ns = getNamespaceString(namespace);</span>
+<span class="nc" id="L194">            logger.debug(&quot;Sending metric &quot; + ns + &quot;.&quot; + metricName + &quot; with value &quot; + value + &quot; at UTC &quot;</span>
+                        + getUTCTime(timestamp));
+<span class="nc" id="L196">            PutMetricDataRequest req = new PutMetricDataRequest();</span>
+            // Add a collection of MetricDatum
+<span class="nc" id="L198">            ArrayList&lt;MetricDatum&gt; metrics = new ArrayList&lt;MetricDatum&gt;();</span>
+<span class="nc" id="L199">            MetricDatum datum = new MetricDatum().withMetricName(metricName).withTimestamp(timestamp).withUnit(unit)</span>
+                        .withValue((double) value);
+<span class="nc bnc" id="L201" title="All 2 branches missed.">            if (dimensions != null) {</span>
+<span class="nc" id="L202">                List&lt;Dimension&gt; dims = datum.getDimensions();</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">                for (Map.Entry&lt;String, String&gt; entry : dimensions.entrySet()) {</span>
+<span class="nc" id="L204">                    Dimension dim = new Dimension().withName(entry.getKey()).withValue(entry.getValue());</span>
+<span class="nc" id="L205">                    dims.add(dim);</span>
+<span class="nc" id="L206">                }</span>
+<span class="nc" id="L207">                datum.setDimensions(dims);</span>
+            }
+            // Add metric to collection
+<span class="nc" id="L210">            metrics.add(datum);</span>
+<span class="nc" id="L211">            req.setMetricData(metrics);</span>
+<span class="nc" id="L212">            req.setNamespace(ns);</span>
+            // AmazonCloudWatchClient is not threadsafe
+<span class="nc" id="L214">            synchronized (cwClient) {</span>
+<span class="nc" id="L215">                cwClient.putMetricData(req);</span>
+<span class="nc" id="L216">            }</span>
+<span class="nc" id="L217">        } catch (Exception e) {</span>
+<span class="nc" id="L218">            logger.warn(&quot;Error -  &quot; + e.getMessage());</span>
+<span class="nc" id="L219">            return false;</span>
+<span class="nc" id="L220">        }</span>
+<span class="nc" id="L221">        return true;</span>
+    }
+
+    /*
+     * @see com.bhn.monitor.CWMonitorIF#putCWAsyncMetric(java.lang.String, java.lang.String,
+     * com.amazonaws.services.cloudwatch.model.StandardUnit, long, java.util.Map, boolean)
+     */
+    public boolean putCWAsyncMetric(String metricName, String namespace, StandardUnit unit, long value,
+                Map&lt;String, String&gt; dimensions, boolean instIdDimension) {
+<span class="nc" id="L230">        Map&lt;String, String&gt; dmap = null;</span>
+        try {
+<span class="nc bnc" id="L232" title="All 2 branches missed.">            if (dimensions != null) {</span>
+                // Add dimensions to treemap to sort keys
+<span class="nc" id="L234">                dmap = new TreeMap&lt;String, String&gt;(dimensions);</span>
+            }
+<span class="nc bnc" id="L236" title="All 2 branches missed.">            if (instIdDimension) {</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">                if (dmap == null) {</span>
+<span class="nc" id="L238">                    dmap = new TreeMap&lt;String, String&gt;();</span>
+                }
+<span class="nc" id="L240">                addInstanceIdDimension(dmap);</span>
+            }
+<span class="nc bnc" id="L242" title="All 2 branches missed.">            String ns = (namespace == null ? defaultNamespace : namespace);</span>
+<span class="nc" id="L243">            logger.debug(&quot;Loading metric &quot; + ns + &quot;.&quot; + metricName + &quot; with value &quot; + value);</span>
+<span class="nc" id="L244">            MetricData data = new MetricData(metricName, getNamespaceString(ns), unit, value, dmap, instIdDimension,</span>
+                        null);
+            // Calls queueMetricData from threadpool thread
+<span class="nc" id="L247">            MetricQueueProcessor proc = new MetricQueueProcessor(data, this);</span>
+<span class="nc" id="L248">            executor.submit(proc);</span>
+<span class="nc" id="L249">        } catch (Exception e) {</span>
+<span class="nc" id="L250">            logger.warn(&quot;Error -  &quot; + e.getMessage());</span>
+<span class="nc" id="L251">            return false;</span>
+<span class="nc" id="L252">        }</span>
+<span class="nc" id="L253">        return true;</span>
+    }
+
+    /*
+     * @see com.bhn.monitor.CWMonitorIF#putCWAsyncMultiMetric(java.lang.String, java.lang.String, long,
+     * com.bhn.monitor.CWMonitorIF.STATUS, boolean)
+     */
+    public boolean putCWAsyncMultiMetric(String metricName, String namespace, long msLatency, STATUS status,
+                boolean instIdDimension) {
+        try {
+<span class="nc" id="L263">            Map&lt;String, String&gt; dmap = null;</span>
+<span class="nc bnc" id="L264" title="All 2 branches missed.">            if (instIdDimension) {</span>
+<span class="nc" id="L265">                dmap = new TreeMap&lt;String, String&gt;();</span>
+<span class="nc" id="L266">                addInstanceIdDimension(dmap);</span>
+            }
+<span class="nc bnc" id="L268" title="All 2 branches missed.">            String ns = (namespace == null ? defaultNamespace : namespace);</span>
+<span class="nc" id="L269">            logger.debug(&quot;Loading metric &quot; + ns + &quot;.&quot; + metricName + &quot; with msLatency &quot; + msLatency);</span>
+<span class="nc" id="L270">            MetricData data = new MetricData(metricName, getNamespaceString(ns), StandardUnit.Milliseconds, msLatency,</span>
+                        dmap, instIdDimension, status);
+            // Calls queueMetricData from threadpool thread
+<span class="nc" id="L273">            MetricQueueProcessor proc = new MetricQueueProcessor(data, this);</span>
+<span class="nc" id="L274">            executor.submit(proc);</span>
+<span class="nc" id="L275">        } catch (Exception e) {</span>
+<span class="nc" id="L276">            logger.warn(&quot;Error -  &quot; + e.getMessage());</span>
+<span class="nc" id="L277">            return false;</span>
+<span class="nc" id="L278">        }</span>
+<span class="nc" id="L279">        return true;</span>
+    }
+
+    /**
+     * Adds the instance id dimension.
+     * 
+     * @param dimensions the dimensions
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
+    private void addInstanceIdDimension(Map&lt;String, String&gt; dimensions) throws IOException {
+<span class="nc" id="L289">        dimensions.put(INSTANCE_ID_KEY, getInstanceId());</span>
+<span class="nc" id="L290">    }</span>
+
+    /**
+     * Push all metrics to cw. Called by MetricPushThread. Only allow accMap to be accessed by a single thread at a
+     * time.
+     * 
+     * @return the list
+     */
+    public synchronized List&lt;MetricAccumulator&gt; snapshotMetrics() {
+<span class="nc bnc" id="L299" title="All 4 branches missed.">        if (accMap == null || accMap.size() == 0) {</span>
+<span class="nc" id="L300">            return null;</span>
+        }
+<span class="nc" id="L302">        List&lt;MetricAccumulator&gt; metrics = new ArrayList&lt;MetricAccumulator&gt;(accMap.size());</span>
+        try {
+<span class="nc bnc" id="L304" title="All 2 branches missed.">            for (MetricAccumulator acc : accMap.values()) {</span>
+<span class="nc" id="L305">                logger.debug(&quot;Processing - &quot; + acc);</span>
+                // Deep copy each MetricAccumulator instance for processing
+<span class="nc" id="L307">                metrics.add(new MetricAccumulator(acc));</span>
+            }
+<span class="nc" id="L309">        } catch (Exception e) {</span>
+<span class="nc" id="L310">            logger.warn(&quot;Error - &quot; + e);</span>
+<span class="nc" id="L311">            e.printStackTrace();</span>
+<span class="nc" id="L312">        }</span>
+<span class="nc" id="L313">        accMap = new HashMap&lt;String, MetricAccumulator&gt;();</span>
+<span class="nc" id="L314">        return metrics;</span>
+    }
+
+    /**
+     * Push all metrics to cw. Called by MetricPushThread with snapshot of MetricAccumulator list.
+     * 
+     * @param metrics the metrics
+     */
+    public void pushAllMetricsToCW(List&lt;MetricAccumulator&gt; metrics) {
+        try {
+            // AmazonCloudWatchClient is not threadsafe
+<span class="nc" id="L325">            synchronized (cwClient) {</span>
+<span class="nc bnc" id="L326" title="All 2 branches missed.">                for (MetricAccumulator acc : metrics) {</span>
+<span class="nc" id="L327">                    logger.debug(&quot;Processing &quot; + acc.getData().getMetricName() + &quot; ave=&quot; + acc.getAverage()</span>
+                                + &quot; success%=&quot; + acc.getSuccessPercentage());
+<span class="nc bnc" id="L329" title="All 2 branches missed.">                    if (acc.getType() == MetricAccumulator.ACCTYPE.SINGLE) {</span>
+<span class="nc" id="L330">                        PutMetricDataRequest req = acc.getPutMetricDataRequest();</span>
+<span class="nc" id="L331">                        cwClient.putMetricData(req);</span>
+<span class="nc" id="L332">                    } else {</span>
+<span class="nc" id="L333">                        PutMetricDataRequest req = acc.getMultiCountPutMetricDataRequest();</span>
+<span class="nc" id="L334">                        cwClient.putMetricData(req);</span>
+<span class="nc" id="L335">                        req = acc.getMultiLatencyPutMetricDataRequest();</span>
+<span class="nc" id="L336">                        cwClient.putMetricData(req);</span>
+<span class="nc" id="L337">                        req = acc.getMultiSuccessCountPutMetricDataRequest();</span>
+<span class="nc" id="L338">                        cwClient.putMetricData(req);</span>
+<span class="nc" id="L339">                    }</span>
+                }
+<span class="nc" id="L341">            }</span>
+<span class="nc" id="L342">        } catch (Exception e) {</span>
+<span class="nc" id="L343">            logger.warn(&quot;Error - &quot; + e);</span>
+<span class="nc" id="L344">        }</span>
+<span class="nc" id="L345">    }</span>
+
+    /**
+     * If no new data has been cached by the application send zero latency, success % of 100, and a count of zero if
+     * acc.getType() is multiple.
+     * 
+     */
+    public void pushNoNewDataMetricsToCW() {
+        try {
+<span class="nc bnc" id="L354" title="All 4 branches missed.">            if (zeroDataAccMap == null || zeroDataAccMap.size() == 0) {</span>
+<span class="nc" id="L355">                logger.debug(&quot;No metric data in zeroDataAccMap yet to push zero data metrics&quot;);</span>
+<span class="nc" id="L356">                return;</span>
+            }
+<span class="nc" id="L358">            logger.debug(&quot;Pushing zero data messages&quot;);</span>
+<span class="nc bnc" id="L359" title="All 2 branches missed.">            for (MetricAccumulator acc : zeroDataAccMap.values()) {</span>
+<span class="nc" id="L360">                PutMetricDataRequest req = acc.getMultiCountZeroDataPutMetricDataRequest();</span>
+<span class="nc" id="L361">                cwClient.putMetricData(req);</span>
+<span class="nc" id="L362">                req = acc.getMultiLatencyZeroDataPutMetricDataRequest();</span>
+<span class="nc" id="L363">                cwClient.putMetricData(req);</span>
+<span class="nc" id="L364">                req = acc.getMultiSuccessCountZeroDataPutMetricDataRequest();</span>
+<span class="nc" id="L365">                cwClient.putMetricData(req);</span>
+<span class="nc" id="L366">            }</span>
+<span class="nc" id="L367">        } catch (Exception e) {</span>
+<span class="nc" id="L368">            logger.warn(&quot;Error - &quot; + e);</span>
+<span class="nc" id="L369">        }</span>
+<span class="nc" id="L370">    }</span>
+
+    /**
+     * Queue metric data. Called by MetricQueueProcessor Thread.
+     * 
+     * @param data the data
+     */
+    public synchronized void queueMetricData(MetricData data) {
+        try {
+<span class="nc" id="L379">            MetricAccumulator acc = accMap.get(data.getMapCompoundKey());</span>
+<span class="nc bnc" id="L380" title="All 2 branches missed.">            if (acc == null) {</span>
+<span class="nc" id="L381">                acc = new MetricAccumulator(data);</span>
+<span class="nc" id="L382">                accMap.put(data.getMapCompoundKey(), acc);</span>
+            }
+            // Add another data record to the MetricData
+<span class="nc" id="L385">            acc.insert(data);</span>
+            // Also check zeroDataAccMap for a MetricAccumulator with this MetricData and insert is not present. This
+            // map is never cleared.
+<span class="nc bnc" id="L388" title="All 2 branches missed.">            if (zeroDataAccMap.get(data.getMapCompoundKey()) == null) {</span>
+<span class="nc" id="L389">                acc = new MetricAccumulator(data);</span>
+<span class="nc" id="L390">                zeroDataAccMap.put(data.getMapCompoundKey(), acc);</span>
+            }
+<span class="nc" id="L392">            logger.debug(&quot;New MetricData added to - &quot; + acc.toString());</span>
+<span class="nc" id="L393">        } catch (Exception e) {</span>
+<span class="nc" id="L394">            logger.warn(&quot;Error - &quot; + e);</span>
+<span class="nc" id="L395">        }</span>
+<span class="nc" id="L396">    }</span>
+
+    /**
+     * Gets the instance id.
+     * 
+     * @return wget -q -O - http://169.254.169.254/latest/meta-data/instance-id
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
+    public static String getInstanceId() throws IOException {
+<span class="nc bnc" id="L405" title="All 2 branches missed.">        if (ec2InstanceId != null)</span>
+<span class="nc" id="L406">            return ec2InstanceId;</span>
+<span class="nc" id="L407">        String metaUrl = &quot;http://169.254.169.254/latest/meta-data/instance-id&quot;;</span>
+<span class="nc" id="L408">        String EC2Id = &quot;&quot;;</span>
+        String inputLine;
+        try {
+<span class="nc" id="L411">            URL EC2MetaData = new URL(metaUrl);</span>
+<span class="nc" id="L412">            URLConnection EC2MD = EC2MetaData.openConnection();</span>
+<span class="nc" id="L413">            EC2MD.setConnectTimeout(5000);</span>
+<span class="nc" id="L414">            BufferedReader in = new BufferedReader(new InputStreamReader(EC2MD.getInputStream()));</span>
+<span class="nc bnc" id="L415" title="All 2 branches missed.">            while ((inputLine = in.readLine()) != null) {</span>
+<span class="nc" id="L416">                EC2Id = inputLine;</span>
+            }
+<span class="nc" id="L418">            in.close();</span>
+<span class="nc" id="L419">        } catch (Exception e) {</span>
+<span class="nc" id="L420">            logger.warn(&quot;Error getting instanceId setting to i-unknown&quot;);</span>
+<span class="nc" id="L421">            ec2InstanceId = &quot;i-unknown&quot;;</span>
+<span class="nc" id="L422">            return ec2InstanceId;</span>
+<span class="nc" id="L423">        }</span>
+<span class="nc" id="L424">        ec2InstanceId = EC2Id;</span>
+<span class="nc" id="L425">        return EC2Id;</span>
+    }
+
+    /**
+     * Gets the region string.
+     * 
+     * @return the region string
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
+    public static String getRegionString() throws IOException {
+<span class="nc bnc" id="L435" title="All 2 branches missed.">        if (regionStr != null)</span>
+<span class="nc" id="L436">            return regionStr;</span>
+<span class="nc" id="L437">        String metaUrl = &quot;http://169.254.169.254/latest/dynamic/instance-identity/document&quot;;</span>
+<span class="nc" id="L438">        String rStr = &quot;&quot;;</span>
+        String inputLine;
+        try {
+<span class="nc" id="L441">            URL EC2MetaData = new URL(metaUrl);</span>
+<span class="nc" id="L442">            URLConnection EC2MD = EC2MetaData.openConnection();</span>
+<span class="nc" id="L443">            EC2MD.setConnectTimeout(5000);</span>
+<span class="nc" id="L444">            BufferedReader in = new BufferedReader(new InputStreamReader(EC2MD.getInputStream()));</span>
+<span class="nc" id="L445">            StringBuilder jsonBld = new StringBuilder();</span>
+<span class="nc bnc" id="L446" title="All 2 branches missed.">            while ((inputLine = in.readLine()) != null) {</span>
+<span class="nc" id="L447">                jsonBld.append(inputLine);</span>
+            }
+<span class="nc" id="L449">            String jsonStr = jsonBld.toString();</span>
+<span class="nc" id="L450">            JsonParser parser = new JsonParser();</span>
+<span class="nc" id="L451">            JsonObject obj = parser.parse(jsonStr).getAsJsonObject();</span>
+<span class="nc" id="L452">            rStr = obj.get(&quot;region&quot;).toString().replace(&quot;\&quot;&quot;, &quot;&quot;);</span>
+<span class="nc" id="L453">            in.close();</span>
+<span class="nc" id="L454">        } catch (Exception e) {</span>
+<span class="nc" id="L455">            regionStr = US_WEST2_REGION;</span>
+<span class="nc" id="L456">            logger.warn(&quot;Error getting regionStr setting to &quot; + regionStr);</span>
+<span class="nc" id="L457">            return regionStr;</span>
+<span class="nc" id="L458">        }</span>
+<span class="nc" id="L459">        regionStr = rStr;</span>
+<span class="nc" id="L460">        logger.debug(&quot;Region string set to - &quot; + regionStr);</span>
+<span class="nc" id="L461">        return regionStr;</span>
+    }
+
+    /**
+     * Gets the stack name.
+     * 
+     * @return the stack name
+     * @throws CWMetricException the cW metric exception
+     */
+    public static String getStackName() throws CWMetricException {
+<span class="nc bnc" id="L471" title="All 2 branches missed.">        if (stackName != null) {</span>
+<span class="nc" id="L472">            return stackName;</span>
+        }
+<span class="nc" id="L474">        String stackKey = &quot;aws:cloudformation:stack-name&quot;;</span>
+<span class="nc" id="L475">        String instId = null;</span>
+        try {
+<span class="nc" id="L477">            instId = getInstanceId();</span>
+<span class="nc" id="L478">            List&lt;Tag&gt; tags = getTags(instId);</span>
+<span class="nc bnc" id="L479" title="All 2 branches missed.">            for (Tag tag : tags) {</span>
+<span class="nc bnc" id="L480" title="All 2 branches missed.">                if (tag.getKey().equals(stackKey)) {</span>
+<span class="nc" id="L481">                    stackName = tag.getValue();</span>
+<span class="nc" id="L482">                    return stackName;</span>
+                }
+            }
+<span class="nc" id="L485">        } catch (Exception e) {</span>
+<span class="nc" id="L486">            logger.warn(&quot;Error getting stack-name   - &quot; + e.getMessage() + &quot; Setting stackname to UnknownStack&quot;);</span>
+<span class="nc" id="L487">            stackName = &quot;UnknownStack&quot;;</span>
+<span class="nc" id="L488">            return stackName;</span>
+<span class="nc" id="L489">        }</span>
+<span class="nc" id="L490">        throw new CWMetricException(&quot;Error getting stack-name, &quot; + stackKey + &quot; not found&quot;);</span>
+    }
+
+    /**
+     * Gets the tags.
+     * 
+     * @param instanceId the instance id
+     * @return the tags
+     * @throws IllegalArgumentException the illegal argument exception
+     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws InterruptedException the interrupted exception
+     * @throws CWMetricException the cW metric exception
+     */
+    private static List&lt;Tag&gt; getTags(String instanceId) throws IllegalArgumentException, IOException,
+                InterruptedException, CWMetricException {
+<span class="nc" id="L505">        logger.debug(&quot;Looking for instId - &quot; + instanceId);</span>
+        // ClientConfiguration clientConfig = new ClientConfiguration();
+<span class="nc" id="L507">        AmazonEC2 ec2 = new AmazonEC2Client();</span>
+<span class="nc" id="L508">        ec2.setRegion(getCurrentRegion());</span>
+        // DescribeTagsResult result = ec2.describeTags();
+        // logger.debug(&quot;getTags: DescribeTagsResult - &quot; + result);
+<span class="nc" id="L511">        DescribeInstancesRequest instReq = new DescribeInstancesRequest();</span>
+<span class="nc" id="L512">        instReq.withInstanceIds(instanceId);</span>
+<span class="nc" id="L513">        DescribeInstancesResult describeInstancesResult = ec2.describeInstances(instReq);</span>
+        // logger.debug(&quot;getTags: describeInstancesResult - &quot; + describeInstancesResult);
+<span class="nc" id="L515">        List&lt;Reservation&gt; reservations = describeInstancesResult.getReservations();</span>
+<span class="nc bnc" id="L516" title="All 2 branches missed.">        for (Reservation reservation : reservations) {</span>
+<span class="nc bnc" id="L517" title="All 2 branches missed.">            for (Instance instance : reservation.getInstances()) {</span>
+<span class="nc bnc" id="L518" title="All 2 branches missed.">                if (instance.getInstanceId().equals(instanceId))</span>
+<span class="nc" id="L519">                    return instance.getTags();</span>
+            }
+        }
+<span class="nc" id="L522">        logger.warn(&quot;InstanceId - &quot; + instanceId + &quot; not found&quot;);</span>
+<span class="nc" id="L523">        throw new CWMetricException(&quot;Error instanceId - &quot; + instanceId + &quot; not found&quot;);</span>
+    }
+
+    /**
+     * Gets the uTC time.
+     * 
+     * @param date the date
+     * @return the uTC time
+     */
+    private static String getUTCTime(Date date) {
+<span class="nc" id="L533">        SimpleDateFormat f = new SimpleDateFormat(&quot;yyyy/MM/dd HH:mm:ss&quot;);</span>
+<span class="nc" id="L534">        f.setTimeZone(TimeZone.getTimeZone(&quot;UTC&quot;));</span>
+<span class="nc" id="L535">        return f.format(date);</span>
+    }
+
+    /**
+     * Close.
+     */
+    public void close() {
+<span class="nc" id="L542">        logger.debug(&quot;Shutting down all threads&quot;);</span>
+        // Gracefully shutdown thread pool executor. All submitted tasks will
+        // run to completion, no new tasks will be accepted.
+<span class="nc" id="L545">        executor.shutdown();</span>
+        // Wait for all submitted tasks to complete. Handle InterruptedException
+        // if thread pool executor is interrupted.
+        try {
+<span class="nc" id="L549">            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);</span>
+<span class="nc" id="L550">        } catch (InterruptedException e) {</span>
+<span class="nc" id="L551">        }</span>
+        // Notify MetricPushThread it time to do a final push and go away
+<span class="nc" id="L553">        cwMetricsPush = false;</span>
+        // Force mpThread out of its while loop and exit
+<span class="nc" id="L555">        mpThread.interrupt();</span>
+        try {
+<span class="nc" id="L557">            mpThread.join();</span>
+<span class="nc" id="L558">        } catch (InterruptedException e) {</span>
+<span class="nc" id="L559">        }</span>
+<span class="nc" id="L560">    }</span>
+
+    /**
+     * Checks if is cw metrics push.
+     * 
+     * @return the cwMetricsPush
+     */
+    public boolean isCwMetricsPush() {
+<span class="nc" id="L568">        return cwMetricsPush;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.6.2.201302030002</span></div></body></html>

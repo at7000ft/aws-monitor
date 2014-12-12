@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MetricData.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="right"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">bhn-monitor</a> &gt; <a href="index.html" class="el_package">com.bhn.monitor</a> &gt; <span class="el_source">MetricData.java</span></div><h1>MetricData.java</h1><pre class="source lang-java linenums">/**
+ * &lt;p&gt;
+ * Title: MetricData.java
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Description: Dumb container for metric data as passed in from client applications.
+ * 
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * 2008
+ * &lt;/p&gt;
+ * 
+ * @author rholl00
+ * 
+ * 
+ */
+package com.bhn.monitor;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import com.amazonaws.services.cloudwatch.model.StandardUnit;
+import com.bhn.monitor.CWMonitorIF.STATUS;
+
+/**
+ * The Class MetricData.
+ */
+public class MetricData {
+    private String metricName;
+    private String namespace;
+    private StandardUnit unit;
+    private long value;
+<span class="nc" id="L33">    private Map&lt;String, String&gt; dimensions = new HashMap&lt;String, String&gt;();</span>
+    private boolean instIdDimension;
+<span class="nc" id="L35">    private STATUS status = null;</span>
+
+    /**
+     * Instantiates a new metric data.
+     * 
+     * @param metricName the metric name
+     * @param namespace the namespace
+     * @param unit the unit
+     * @param value the value
+     * @param dimensions the dimensions
+     * @param instIdDimension the inst id dimension
+     * @param status the status
+     */
+    public MetricData(String metricName, String namespace, StandardUnit unit, long value,
+                Map&lt;String, String&gt; dimensions, boolean instIdDimension, STATUS status) {
+<span class="nc" id="L50">        super();</span>
+<span class="nc" id="L51">        this.metricName = metricName;</span>
+<span class="nc" id="L52">        this.namespace = namespace;</span>
+<span class="nc" id="L53">        this.unit = unit;</span>
+<span class="nc" id="L54">        this.value = value;</span>
+<span class="nc" id="L55">        this.dimensions = dimensions;</span>
+<span class="nc" id="L56">        this.instIdDimension = instIdDimension;</span>
+<span class="nc" id="L57">        this.status = status;</span>
+<span class="nc" id="L58">    }</span>
+
+    /**
+     * Copy constructor. Instantiates a new metric data.
+     * 
+     * @param orgData the org data
+     */
+<span class="nc" id="L65">    public MetricData(MetricData orgData) {</span>
+<span class="nc" id="L66">        this.metricName = new String(orgData.getMetricName());</span>
+<span class="nc" id="L67">        this.namespace = new String(orgData.getNamespace());</span>
+<span class="nc" id="L68">        this.unit = orgData.getUnit();</span>
+<span class="nc" id="L69">        this.value = orgData.getValue();</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        if (orgData.getDimensions() != null) {</span>
+<span class="nc" id="L71">            this.dimensions.putAll(orgData.getDimensions());</span>
+        }
+<span class="nc" id="L73">        this.instIdDimension = orgData.isInstIdDimension();</span>
+<span class="nc" id="L74">        this.status = orgData.getStatus();</span>
+<span class="nc" id="L75">    }</span>
+
+    /**
+     * Return a key to be used for referencing MetricAccumulator instances from a Map
+     * 
+     * @return
+     */
+    public String getMapCompoundKey() {
+<span class="nc" id="L83">        return namespace + &quot;:&quot; + metricName;</span>
+    }
+
+    /**
+     * Gets the status.
+     * 
+     * @return the status
+     */
+    public STATUS getStatus() {
+<span class="nc" id="L92">        return status;</span>
+    }
+
+    /**
+     * Sets the status.
+     * 
+     * @param status the new status
+     */
+    public void setStatus(STATUS status) {
+<span class="nc" id="L101">        this.status = status;</span>
+<span class="nc" id="L102">    }</span>
+
+    /**
+     * Gets the metric name.
+     * 
+     * @return the metricName
+     */
+    public String getMetricName() {
+<span class="nc" id="L110">        return metricName;</span>
+    }
+
+    /**
+     * Sets the metric name.
+     * 
+     * @param metricName the new metric name
+     */
+    public void setMetricName(String metricName) {
+<span class="nc" id="L119">        this.metricName = metricName;</span>
+<span class="nc" id="L120">    }</span>
+
+    /**
+     * Gets the namespace.
+     * 
+     * @return the namespace
+     */
+    public String getNamespace() {
+<span class="nc" id="L128">        return namespace;</span>
+    }
+
+    /**
+     * Sets the namespace.
+     * 
+     * @param namespace the new namespace
+     */
+    public void setNamespace(String namespace) {
+<span class="nc" id="L137">        this.namespace = namespace;</span>
+<span class="nc" id="L138">    }</span>
+
+    /**
+     * Gets the unit.
+     * 
+     * @return the unit
+     */
+    public StandardUnit getUnit() {
+<span class="nc" id="L146">        return unit;</span>
+    }
+
+    /**
+     * Sets the unit.
+     * 
+     * @param unit the new unit
+     */
+    public void setUnit(StandardUnit unit) {
+<span class="nc" id="L155">        this.unit = unit;</span>
+<span class="nc" id="L156">    }</span>
+
+    /**
+     * Gets the value.
+     * 
+     * @return the value
+     */
+    public long getValue() {
+<span class="nc" id="L164">        return value;</span>
+    }
+
+    /**
+     * Sets the value.
+     * 
+     * @param value the new value
+     */
+    public void setValue(long value) {
+<span class="nc" id="L173">        this.value = value;</span>
+<span class="nc" id="L174">    }</span>
+
+    /**
+     * Gets the dimensions.
+     * 
+     * @return the dimensions
+     */
+    public Map&lt;String, String&gt; getDimensions() {
+<span class="nc" id="L182">        return dimensions;</span>
+    }
+
+    /**
+     * Sets the dimensions.
+     * 
+     * @param dimensions the dimensions
+     */
+    public void setDimensions(Map&lt;String, String&gt; dimensions) {
+<span class="nc" id="L191">        this.dimensions = dimensions;</span>
+<span class="nc" id="L192">    }</span>
+
+    /**
+     * Checks if is inst id dimension.
+     * 
+     * @return the instIdDimension
+     */
+    public boolean isInstIdDimension() {
+<span class="nc" id="L200">        return instIdDimension;</span>
+    }
+
+    /**
+     * Sets the inst id dimension.
+     * 
+     * @param instIdDimension the new inst id dimension
+     */
+    public void setInstIdDimension(boolean instIdDimension) {
+<span class="nc" id="L209">        this.instIdDimension = instIdDimension;</span>
+<span class="nc" id="L210">    }</span>
+
+    /*
+     * @see java.lang.Object#toString()
+     */
+    public String toString() {
+<span class="nc" id="L216">        return &quot;MetricData [metricName=&quot; + metricName + &quot;, namespace=&quot; + namespace + &quot;, unit=&quot; + unit + &quot;, value=&quot;</span>
+                    + value + &quot;, status=&quot; + status + &quot;, dimensions=&quot; + dimensions + &quot;, instIdDimension=&quot;
+                    + instIdDimension + &quot;]&quot;;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.6.2.201302030002</span></div></body></html>

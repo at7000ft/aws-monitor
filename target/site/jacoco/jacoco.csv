@@ -1,0 +1,10 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+bhn-monitor,com.bhn.monitor,MetricAccumulator,394,0,14,0,67,0,32,0,25,0
+bhn-monitor,com.bhn.monitor,CWMonitor,1154,0,60,0,256,0,51,0,21,0
+bhn-monitor,com.bhn.monitor,CWMonitorIF.STATUS,38,0,0,0,2,0,4,0,4,0
+bhn-monitor,com.bhn.monitor,MetricQueueProcessor,48,0,0,0,13,0,3,0,3,0
+bhn-monitor,com.bhn.monitor,MetricAccumulator.ACCTYPE,38,0,0,0,2,0,4,0,4,0
+bhn-monitor,com.bhn.monitor,MetricData,185,0,2,0,44,0,19,0,18,0
+bhn-monitor,com.bhn.monitor,MetricPushThread,54,0,4,0,22,0,5,0,3,0
+bhn-monitor,com.bhn.monitor.model,MetricData,63,0,0,0,26,0,13,0,13,0
+bhn-monitor,com.bhn.monitor.exceptions,CWMetricException,16,0,0,0,8,0,4,0,4,0

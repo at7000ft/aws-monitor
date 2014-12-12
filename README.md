@@ -18,7 +18,7 @@ Add the following dependency to your maven pom:
 <dependency>
         <groupId>com.webpilot.monitor</groupId>
         <artifactId>aws-monitor</artifactId>
-        <version>0.0.2-SNAPSHOT</version>
+        <version>1.0.1</version>
 </dependency>
 ```
 Usage
